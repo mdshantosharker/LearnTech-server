@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { MongoClient, ObjectId, ServerApiVersion } from "mongodb";
+import * as jose from "jose";
 dotenv.config();
 const app = express();
 app.use(cors({
@@ -18,10 +19,28 @@ const client = new MongoClient(uri, {
 });
 const db = client.db("LearnTech");
 const coursesCollection = db.collection("courses");
+// JWT Authentication Middleware
+const authenticateJWT = async (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            res.status(401).send({ message: "Unauthorized: Missing token" });
+            return;
+        }
+        const token = authHeader.split(" ")[1];
+        const secretKey = new TextEncoder().encode(process.env.BETTER_AUTH_SECRET);
+        const { payload } = await jose.jwtVerify(token, secretKey);
+        req.user = payload;
+        next();
+    }
+    catch (error) {
+        res.status(403).send({ message: "Forbidden: Invalid or expired token" });
+    }
+};
 app.get("/", (_req, res) => {
     res.send("Hello LearnTech Backend");
 });
-app.post("/courses", async (req, res) => {
+app.post("/courses", authenticateJWT, async (req, res) => {
     try {
         const courseData = req.body;
         const result = await coursesCollection.insertOne(courseData);
@@ -62,7 +81,7 @@ app.get("/courses/:id", async (req, res) => {
     }
 });
 // Delete Course
-app.delete("/courses/:id", async (req, res) => {
+app.delete("/courses/:id", authenticateJWT, async (req, res) => {
     try {
         const id = req.params.id;
         const result = await coursesCollection.deleteOne({

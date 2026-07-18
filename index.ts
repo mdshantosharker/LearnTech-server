@@ -7,7 +7,12 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "*",
+  }),
+);
+
 app.use(express.json());
 
 const uri = process.env.MONGODB_URI as string;
@@ -20,64 +25,104 @@ const client = new MongoClient(uri, {
   },
 });
 
-async function connectDB() {
-  try {
-    // await client.connect();
-    const db = client.db("LearnTech");
-    const developersCollection = db.collection("courses");
 
-    app.post("/courses", async (req, res) => {
-      const developerData = req.body;
-      const result = await developersCollection.insertOne(developerData);
-      res.send(result);
-    });
+const db = client.db("LearnTech");
+const coursesCollection = db.collection("courses");
 
-    app.get("/courses", async (req, res) => {
-      const result = await developersCollection.find().toArray();
-      res.send(result);
-    });
-
-    app.get("/courses/:id", async (req, res) => {
-      const id = req.params.id;
-      const result = await developersCollection.findOne({
-        _id: new ObjectId(id),
-      });
-      res.send(result);
-    });
-
-    app.delete("/courses/:id", async (req, res) => {
-      const id = req.params.id;
-
-      const result = await developersCollection.deleteOne({
-        _id: new ObjectId(id),
-      });
-
-      if (result.deletedCount === 0) {
-        return res.status(404).send({
-          message: "Developer not found",
-        });
-      }
-
-      res.send({
-        success: true,
-        message: "Developer deleted successfully",
-      });
-    });
-
-    console.log("MongoDB Connected");
-  } catch (error) {
-    console.error("MongoDB connection failed:", error);
-  }
-}
-
-connectDB();
 
 app.get("/", (_req, res) => {
   res.send("Hello LearnTech Backend");
 });
 
+
+app.post("/courses", async (req, res) => {
+  try {
+    const courseData = req.body;
+
+    const result = await coursesCollection.insertOne(courseData);
+
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({
+      message: "Failed to create course",
+      error,
+    });
+  }
+});
+
+
+app.get("/courses", async (req, res) => {
+  try {
+    const result = await coursesCollection.find().toArray();
+
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({
+      message: "Failed to fetch courses",
+      error,
+    });
+  }
+});
+
+
+app.get("/courses/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const result = await coursesCollection.findOne({
+      _id: new ObjectId(id),
+    });
+
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({
+      message: "Failed to get course",
+      error,
+    });
+  }
+});
+
+// Delete Course
+app.delete("/courses/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const result = await coursesCollection.deleteOne({
+      _id: new ObjectId(id),
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).send({
+        message: "Course not found",
+      });
+    }
+
+    res.send({
+      success: true,
+      message: "Course deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Delete failed",
+      error,
+    });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+async function startServer() {
+  try {
+    await client.connect();
+
+    console.log("MongoDB Connected");
+
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.log("MongoDB connection failed", error);
+  }
+}
+
+startServer();

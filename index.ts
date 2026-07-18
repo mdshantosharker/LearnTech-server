@@ -60,7 +60,7 @@ app.get("/", (_req, res) => {
 });
 
 
-app.post("/courses", authenticateJWT, async (req, res) => {
+app.post("/courses", async (req, res) => {
   try {
     const courseData = req.body;
 
@@ -108,7 +108,7 @@ app.get("/courses/:id", async (req, res) => {
 });
 
 // Delete Course
-app.delete("/courses/:id", authenticateJWT, async (req, res) => {
+app.delete("/courses/:id", async (req, res) => {
   try {
     const id = req.params.id as string;
 
